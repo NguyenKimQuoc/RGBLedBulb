@@ -96,7 +96,9 @@ static byte zclLight_TaskID;
 /*********************************************************************
  * LOCAL FUNCTIONS
  */
-
+uint8 getTaskID(void){
+  return zclLight_TaskID;
+}
 /*********************************************************************
  * @fn          zclLevel_init
  *
@@ -111,19 +113,19 @@ void zclColor_init( byte taskID )
   zclLight_TaskID = taskID;
 
   //Move to default color
-  zclColor_HueRemainingTime = 0;
-  hwLight_ApplyUpdate( &zclColor_CurrentHue,
-                       &zclColor_CurrentHue_256,
-                       &zclColor_StepHue_256,
-                       &zclColor_HueRemainingTime,
-                       COLOR_HUE_MIN, COLOR_HUE_MAX, TRUE );
-
-  zclColor_SaturationRemainingTime = 0;
-  hwLight_ApplyUpdate( &zclColor_CurrentSaturation,
-                       &zclColor_CurrentSaturation_256,
-                       &zclColor_StepSaturation_256,
-                       &zclColor_SaturationRemainingTime,
-                       COLOR_SAT_MIN, COLOR_SAT_MAX, FALSE );
+//  zclColor_HueRemainingTime = 0;
+//  hwLight_ApplyUpdate( &zclColor_CurrentHue,
+//                       &zclColor_CurrentHue_256,
+//                       &zclColor_StepHue_256,
+//                       &zclColor_HueRemainingTime,
+//                       COLOR_HUE_MIN, COLOR_HUE_MAX, TRUE );
+//
+//  zclColor_SaturationRemainingTime = 0;
+//  hwLight_ApplyUpdate( &zclColor_CurrentSaturation,
+//                       &zclColor_CurrentSaturation_256,
+//                       &zclColor_StepSaturation_256,
+//                       &zclColor_SaturationRemainingTime,
+//                       COLOR_SAT_MIN, COLOR_SAT_MAX, FALSE );
 }
 
 /*********************************************************************

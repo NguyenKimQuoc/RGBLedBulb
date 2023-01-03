@@ -11,6 +11,7 @@
 #include "MT_SYS.h"
 
 #include "nwk_util.h"
+#include "OSAL_PwrMgr.h"
 
 #include "zcl.h"
 #include "zcl_general.h"
@@ -53,6 +54,7 @@
 #include "bitmasks.h"
 #include "delay.h"
 #include "pwm.h"
+#include "Debug.h"
 /*********************************************************************
  * MACROS
  */
@@ -70,6 +72,8 @@
 /*********************************************************************
  * GLOBAL VARIABLES
  */
+extern bool requestNewTrustCenterLinkKey;
+
 byte zclRGBLedBulb_TaskID;
 //int16 zclRGBLedBulb_MeasuredValue;
 afAddrType_t zclRGBLedBulb_DstAddr;
@@ -77,7 +81,7 @@ afAddrType_t zclRGBLedBulb_DstAddr;
 float HumidityValue;
 volatile uint8 powerSwCounting = 0;
 char dat[20];
-
+uint8 colorXYBuff[8];
 /*********************************************************************
  * GLOBAL FUNCTIONS
  */
@@ -114,7 +118,7 @@ static void zclRGBLedBulb_BindNotification( bdbBindNotificationData_t *data );
 static void zclRGBLedBulb_ProcessTouchlinkTargetEnable( uint8 enable );
 #endif
 
-static void zclRGBLedBulb_ProcessCommissioningStatus(bdbCommissioningModeMsg_t *bdbCommissioningModeMsg);
+//static void zclRGBLedBulb_ProcessCommissioningStatus(bdbCommissioningModeMsg_t *bdbCommissioningModeMsg);
 
 
 // app display functions
@@ -145,7 +149,9 @@ static void zclSampleApp_BatteryWarningCB( uint8 voltLevel);
 static void zclRGBLedBulb_ReportLed( void );
 static void zclRGBLedBulb_DetectShortRST( void );
 void zclRGBLedBulb_LeaveNetwork( void );
-
+static void zclRGBLedBulb_RestoreAttributesFromNV(void);
+static void zclRGBLedBulb_SaveAttributesToNV(void);
+static void zclRGBLedBulb_ReportErrorRuntime( void);
 // This callback is called to process attribute not handled in ZCL
 static ZStatus_t zclRGBLedBulb_AttrReadWriteCB( uint16 clusterId, uint16 attrId,
                                        uint8 oper, uint8 *pValue, uint16 *pLen );
@@ -248,6 +254,27 @@ static zclLighting_AppCallbacks_t zclRGBLedBulb_LightingCmdCBs =
  */
 void zclRGBLedBulb_Init( byte task_id )
 {
+        // P0.2,3 UART; P0.4,5,6 ADC; P0.7, P1.0,1 PWM
+  P0SEL |= BV(6)|BV(5)|BV(4)|BV(3)|BV(2);
+  APCFG |= BV(6)|BV(5)|BV(4);
+  P0INP |= BV(4);
+  
+  // Power off interrupt
+  P0SEL &= ~BV(0);
+  P0DIR &= (~BV(0));
+  P0INP &= ~BV(0);
+  P2INP |= BV(5);
+  
+  PICTL |= BV(0);
+  P0IEN |= BV(0);
+  IEN1 |= BV(5);
+  P0IFG = 0;
+  
+//  ZMacSetTransmitPower(TX_PWR_PLUS_4);
+
+    // this is important to allow connects throught routers
+    // to make this work, coordinator should be compiled with this flag #define TP2_LEGACY_ZC
+//  requestNewTrustCenterLinkKey = FALSE;
   zclRGBLedBulb_TaskID = task_id;
 
   // This app is part of the Home Automation Profile
@@ -295,11 +322,11 @@ void zclRGBLedBulb_Init( byte task_id )
   // Register for all key events - This app will handle all key events
   RegisterForKeys( zclRGBLedBulb_TaskID );
   
-  zclRGBLedBulb_OnOffCB( zclRGBLedBulb_OnOff );
+
   
-  bdb_RegisterCommissioningStatusCB( zclRGBLedBulb_ProcessCommissioningStatus );
+//  bdb_RegisterCommissioningStatusCB( zclRGBLedBulb_ProcessCommissioningStatus );
   bdb_RegisterIdentifyTimeChangeCB( zclRGBLedBulb_ProcessIdentifyTimeChange );
-  bdb_RegisterBindNotificationCB( zclRGBLedBulb_BindNotification );
+//  bdb_RegisterBindNotificationCB( zclRGBLedBulb_BindNotification );
 
 #if ( defined ( BDB_TL_TARGET ) && (BDB_TOUCHLINK_CAPABILITY_ENABLED == TRUE) )
   bdb_RegisterTouchlinkTargetEnableCB( zclRGBLedBulb_ProcessTouchlinkTargetEnable );
@@ -327,50 +354,34 @@ void zclRGBLedBulb_Init( byte task_id )
 //  osal_nv_write(NV_PW_SW_COUTING_ID, 0, 1, &powerSwCounting);
   //osal_nv_write(NV_DIYRuZRT_RELAY_STATE_ID, 0, 1, &RELAY_STATE);
   
-      // P0.2,3 UART; P0.4,5,6 ADC; P0.7, P1.0,1 PWM
-  P0SEL |= BV(6)|BV(5)|BV(4)|BV(3)|BV(2);
-  APCFG |= BV(6)|BV(5)|BV(4);
-  P0INP |= BV(4);
-  
-  // Power off interrupt
-  P0SEL &= ~BV(0);
-  P0DIR &= (~BV(0));
-  P0INP &= ~BV(0);
-  P2INP |= BV(5);
-  
-  PICTL |= BV(0);
-  P0IEN |= BV(0);
-  IEN1 |= BV(5);
-  P0IFG = 0;
+
 
   
 #ifdef UART_DEBUG 
   UART_Init();
 #endif
   //zclRGBLedBulb_DetectShortRST();
-  
-  HalAdcInit();
-  HalAdcSetReference(HAL_ADC_REF_125V);
+ 
   
 //  PWM_Init();
   #ifdef UART_DEBUG
   UART_String("start");
 #endif
   
-  zclColor_init(zclRGBLedBulb_TaskID);
-//  hwLight_UpdateOnOff( LIGHT_OFF );
+  
+  zclRGBLedBulb_RestoreAttributesFromNV();
+  zclRGBLedBulb_OnOffCB( zclRGBLedBulb_OnOff );
+    
+  HalAdcInit();
+  HalAdcSetReference(HAL_ADC_REF_125V);
+//  hwLight_UpdateOnOff( LIGHT_ON );
 //  halTimer1SetChannelDuty (RED_LED, 1000);
 //  halTimer1SetChannelDuty (GREEN_LED, 1000);
 //  halTimer1SetChannelDuty (BLUE_LED, 1000);
   //bdb_StartCommissioning(BDB_COMMISSIONING_MODE_PARENT_LOST);
-  bdb_StartCommissioning(
-          BDB_COMMISSIONING_MODE_NWK_FORMATION | 
-          BDB_COMMISSIONING_MODE_NWK_STEERING | 
-          BDB_COMMISSIONING_MODE_FINDING_BINDING | 
-          BDB_COMMISSIONING_MODE_INITIATOR_TL
-        );
+//  bdb_StartCommissioning(BDB_COMMISSIONING_MODE_NWK_STEERING | BDB_COMMISSIONING_MODE_FINDING_BINDING);
   
-  //osal_start_reload_timer( zclRGBLedBulb_TaskID, RGBLedBulb_REPORTING_EVT, 3000 );
+//  osal_start_reload_timer( zclRGBLedBulb_TaskID, RGBLedBulb_REPORTING_EVT, 1000 );
 
 //  bdb_StartCommissioning(BDB_COMMISSIONING_MODE_NWK_STEERING |
 //                         BDB_COMMISSIONING_MODE_FINDING_BINDING);
@@ -453,21 +464,34 @@ uint16 zclRGBLedBulb_event_loop( uint8 task_id, uint16 events )
   {
     if (P0_0 == 1)
     {
-      UART_String("zoooo");
+      zclRGBLedBulb_OnOffCB( LIGHT_ON );
+      zclCCMoveToColor_t pCmd = {0};
+      pCmd.colorX = 0x616b;
+      pCmd.colorY = 0x607d;
+      pCmd.transitionTime = 0;
+      zclColor_MoveToColorCB(&pCmd);
+      
+      zllEffects_Breathe();
+      zclRGBLedBulb_OnOff_Behavior = LIGHT_PREVIOUS;
+      zclColor_ColorRemainingTime = 0;
+      zclRGBLedBulb_SaveAttributesToNV();
+      _delay_ms(2000);
+//      UART_String("zoooo");
       powerSwCounting = 0;
-      if ( bdbAttributes.bdbNodeIsOnANetwork )
-      {
-        zclRGBLedBulb_LeaveNetwork();
-      }
-      else 
-      {
-        bdb_StartCommissioning(
-          BDB_COMMISSIONING_MODE_NWK_FORMATION | 
-          BDB_COMMISSIONING_MODE_NWK_STEERING | 
-          BDB_COMMISSIONING_MODE_FINDING_BINDING | 
-          BDB_COMMISSIONING_MODE_INITIATOR_TL
-        );
-      }
+      bdb_resetLocalAction();
+//      if ( bdbAttributes.bdbNodeIsOnANetwork )
+//      {
+//        zclRGBLedBulb_LeaveNetwork();
+//      }
+//      else 
+//      {
+//        bdb_StartCommissioning(
+//          BDB_COMMISSIONING_MODE_NWK_FORMATION | 
+//          BDB_COMMISSIONING_MODE_NWK_STEERING | 
+//          BDB_COMMISSIONING_MODE_FINDING_BINDING | 
+//          BDB_COMMISSIONING_MODE_INITIATOR_TL
+//        );
+//      }
     } 
     else
       osal_start_timerEx(zclRGBLedBulb_TaskID, RGBLedBulb_EVT_LONG, 100);
@@ -483,23 +507,30 @@ uint16 zclRGBLedBulb_event_loop( uint8 task_id, uint16 events )
     //P0_6 = ~P0_6;
 //    DHT22_Measure();
 //    zclRGBLedBulb_ReportTemp();
-
-    sprintf(dat,"ADC 1: %d", HalAdcRead(HAL_ADC_CHANNEL_4, HAL_ADC_RESOLUTION_14));
-    UART_String(dat);
-    
-    sprintf(dat,"ADC 2: %d", HalAdcRead(HAL_ADC_CHANNEL_5, HAL_ADC_RESOLUTION_14));
-    UART_String(dat);
-
-    sprintf(dat,"ADC 3: %d", HalAdcRead(HAL_ADC_CHANNEL_6, HAL_ADC_RESOLUTION_14));
-    UART_String(dat);
+//    sprintf(dat,"ADC 1: %d", HalAdcRead(HAL_ADC_CHANNEL_4, HAL_ADC_RESOLUTION_14));
+//    UART_String(dat);
+//    
+//    sprintf(dat,"ADC 2: %d", HalAdcRead(HAL_ADC_CHANNEL_5, HAL_ADC_RESOLUTION_14));
+//    UART_String(dat);
+//
+//    sprintf(dat,"ADC 3: %d", HalAdcRead(HAL_ADC_CHANNEL_6, HAL_ADC_RESOLUTION_14));
+//    UART_String(dat);
+//    UART_String("error");
+    zclRGBLedBulb_ReportErrorRuntime();
     return ( events ^ RGBLedBulb_REPORTING_EVT );
   }
   
   
   if ( events & RGBLedBulb_RST_COUNTING_EVT )
   {
-    powerSwCounting = 0;
-    UART_String("rst");
+//    if(P0_0 == 1){
+//      SystemResetSoft();
+//      UART_String("rst");
+//    }else{
+//      UART_String("save");
+      
+      SystemResetSoft();
+//    }
     return ( events ^ RGBLedBulb_RST_COUNTING_EVT );
   }
   
@@ -603,70 +634,71 @@ static void zclRGBLedBulb_HandleKeys( byte shift, byte keys )
  *
  * @return  none
  */
-static void zclRGBLedBulb_ProcessCommissioningStatus(bdbCommissioningModeMsg_t *bdbCommissioningModeMsg)
-{
-  switch(bdbCommissioningModeMsg->bdbCommissioningMode)
-  {
-    case BDB_COMMISSIONING_FORMATION:
-      if(bdbCommissioningModeMsg->bdbCommissioningStatus == BDB_COMMISSIONING_SUCCESS)
-      {
-        //After formation, perform nwk steering again plus the remaining commissioning modes that has not been process yet
-        bdb_StartCommissioning(BDB_COMMISSIONING_MODE_NWK_STEERING | bdbCommissioningModeMsg->bdbRemainingCommissioningModes);
-      }
-      else
-      {
-        //Want to try other channels?
-        //try with bdb_setChannelAttribute
-      }
-    break;
-    case BDB_COMMISSIONING_NWK_STEERING:
-      if(bdbCommissioningModeMsg->bdbCommissioningStatus == BDB_COMMISSIONING_SUCCESS)
-      {
-        //YOUR JOB:
-        //We are on the nwk, what now?
-      }
-      else
-      {
-        //See the possible errors for nwk steering procedure
-        //No suitable networks found
-        //Want to try other channels?
-        //try with bdb_setChannelAttribute
-      }
-    break;
-    case BDB_COMMISSIONING_FINDING_BINDING:
-      if(bdbCommissioningModeMsg->bdbCommissioningStatus == BDB_COMMISSIONING_SUCCESS)
-      {
-        //YOUR JOB:
-      }
-      else
-      {
-        //YOUR JOB:
-        //retry?, wait for user interaction?
-      }
-    break;
-    case BDB_COMMISSIONING_INITIALIZATION:
-      //Initialization notification can only be successful. Failure on initialization
-      //only happens for ZED and is notified as BDB_COMMISSIONING_PARENT_LOST notification
-
-      //YOUR JOB:
-      //We are on a network, what now?
-
-    break;
-#if ZG_BUILD_ENDDEVICE_TYPE    
-    case BDB_COMMISSIONING_PARENT_LOST:
-      if(bdbCommissioningModeMsg->bdbCommissioningStatus == BDB_COMMISSIONING_NETWORK_RESTORED)
-      {
-        //We did recover from losing parent
-      }
-      else
-      {
-        //Parent not found, attempt to rejoin again after a fixed delay
-        osal_start_timerEx(zclRGBLedBulb_TaskID, RGBLedBulb_END_DEVICE_REJOIN_EVT, RGBLedBulb_END_DEVICE_REJOIN_DELAY);
-      }
-    break;
-#endif 
-  }
-}
+//static void zclRGBLedBulb_ProcessCommissioningStatus(bdbCommissioningModeMsg_t *bdbCommissioningModeMsg)
+//{
+//  switch(bdbCommissioningModeMsg->bdbCommissioningMode)
+//  {
+//    case BDB_COMMISSIONING_FORMATION:
+//      if(bdbCommissioningModeMsg->bdbCommissioningStatus == BDB_COMMISSIONING_SUCCESS)
+//      {
+//        //After formation, perform nwk steering again plus the remaining commissioning modes that has not been process yet
+//        bdb_StartCommissioning(BDB_COMMISSIONING_MODE_NWK_STEERING | bdbCommissioningModeMsg->bdbRemainingCommissioningModes);
+//      }
+//      else
+//      {
+//        //Want to try other channels?
+//        //try with bdb_setChannelAttribute
+//      }
+//    break;
+//    case BDB_COMMISSIONING_NWK_STEERING:
+//      if(bdbCommissioningModeMsg->bdbCommissioningStatus == BDB_COMMISSIONING_SUCCESS)
+//      {
+//        //YOUR JOB:
+//        //We are on the nwk, what now?
+//        zclRGBLedBulb_ReportLed();
+//      }
+//      else
+//      {
+//        //See the possible errors for nwk steering procedure
+//        //No suitable networks found
+//        //Want to try other channels?
+//        //try with bdb_setChannelAttribute
+//      }
+//    break;
+//    case BDB_COMMISSIONING_FINDING_BINDING:
+//      if(bdbCommissioningModeMsg->bdbCommissioningStatus == BDB_COMMISSIONING_SUCCESS)
+//      {
+//        //YOUR JOB:
+//      }
+//      else
+//      {
+//        //YOUR JOB:
+//        //retry?, wait for user interaction?
+//      }
+//    break;
+//    case BDB_COMMISSIONING_INITIALIZATION:
+//      //Initialization notification can only be successful. Failure on initialization
+//      //only happens for ZED and is notified as BDB_COMMISSIONING_PARENT_LOST notification
+//
+//      //YOUR JOB:
+//      //We are on a network, what now?
+//      zclRGBLedBulb_ReportLed();
+//    break;
+//#if ZG_BUILD_ENDDEVICE_TYPE    
+//    case BDB_COMMISSIONING_PARENT_LOST:
+//      if(bdbCommissioningModeMsg->bdbCommissioningStatus == BDB_COMMISSIONING_NETWORK_RESTORED)
+//      {
+//        //We did recover from losing parent
+//      }
+//      else
+//      {
+//        //Parent not found, attempt to rejoin again after a fixed delay
+//        osal_start_timerEx(zclRGBLedBulb_TaskID, RGBLedBulb_END_DEVICE_REJOIN_EVT, RGBLedBulb_END_DEVICE_REJOIN_DELAY);
+//      }
+//    break;
+//#endif 
+//  }
+//}
 
 /*********************************************************************
  * @fn      zclRGBLedBulb_ProcessIdentifyTimeChange
@@ -938,10 +970,11 @@ static void zclRGBLedBulb_IdentifyQueryRspCB(  zclIdentifyQueryRsp_t *pRsp )
  */
 static void zclRGBLedBulb_OnOffCB( uint8 cmd )
 {
+//  UART_String("ONOF-CB");
   // Turn on the light
   if ( cmd == COMMAND_ON )
   {
-    UART_String("ON");
+//    UART_String("ON");
     zclRGBLedBulb_OnOff = LIGHT_ON;
     zclRGBLedBulb_GlobalSceneCtrl = TRUE;
     if ( zclRGBLedBulb_OnTime == 0 )
@@ -953,7 +986,7 @@ static void zclRGBLedBulb_OnOffCB( uint8 cmd )
   // Turn off the light
   else if ( cmd == COMMAND_OFF )
   {
-    UART_String("OFF");
+//    UART_String("OFF");
     zclRGBLedBulb_OnOff = LIGHT_OFF;
     //zclRGBLedBulb_GlobalSceneCtrl = FALSE; //see ZLL spec 11-0037-03 6.6.1.2.1
     zclRGBLedBulb_OnTime = 0;
@@ -1469,33 +1502,41 @@ static uint8 zclRGBLedBulb_ProcessInDiscAttrsExtRspCmd( zclIncomingMsg_t *pInMsg
 #endif // ZCL_DISCOVER
 
 
-//static void zclRGBLedBulb_ReportLed( void )
-//{
-//  // ?????? ???????????
-//  const uint8 NUM_ATTRIBUTES = 1;
-//
-//  zclReportCmd_t *pReportCmd;
-//
-//  pReportCmd = osal_mem_alloc(sizeof(zclReportCmd_t) +
-//                              (NUM_ATTRIBUTES * sizeof(zclReport_t)));
-//  if (pReportCmd != NULL) {
-//    pReportCmd->numAttr = NUM_ATTRIBUTES;
-//
-//    pReportCmd->attrList[0].attrID = ATTRID_ON_OFF;
-//    pReportCmd->attrList[0].dataType = ZCL_DATATYPE_BOOLEAN;
-//    pReportCmd->attrList[0].attrData = (void *)(&ledState);
-//    
-//    zclRGBLedBulb_DstAddr.addrMode = (afAddrMode_t)Addr16Bit;
-//    zclRGBLedBulb_DstAddr.addr.shortAddr = 0;
-//    zclRGBLedBulb_DstAddr.endPoint = 1;
-//
-//    zcl_SendReportCmd(RGBLedBulb_ENDPOINT, &zclRGBLedBulb_DstAddr,
-//                      ZCL_CLUSTER_ID_GEN_ON_OFF, pReportCmd,
-//                      ZCL_FRAME_CLIENT_SERVER_DIR, false, SeqNum++);
-//  }
-//
-//  osal_mem_free(pReportCmd);
-//}
+static void zclRGBLedBulb_ReportLed( void )
+{
+  // ?????? ???????????
+  const uint8 NUM_ATTRIBUTES = 3;
+
+  zclReportCmd_t *pReportCmd;
+
+  pReportCmd = osal_mem_alloc(sizeof(zclReportCmd_t) +
+                              (NUM_ATTRIBUTES * sizeof(zclReport_t)));
+  if (pReportCmd != NULL) {
+    pReportCmd->numAttr = NUM_ATTRIBUTES;
+
+    pReportCmd->attrList[0].attrID = ATTRID_LIGHTING_COLOR_CONTROL_REMAINING_TIME;
+    pReportCmd->attrList[0].dataType = ZCL_DATATYPE_UINT16;
+    pReportCmd->attrList[0].attrData = (void *)(&zclColor_ColorRemainingTime);
+    
+    pReportCmd->attrList[1].attrID = ATTRID_LIGHTING_COLOR_CONTROL_CURRENT_X;
+    pReportCmd->attrList[1].dataType = ZCL_DATATYPE_UINT16;
+    pReportCmd->attrList[1].attrData = (void *)(&zclColor_CurrentX);
+    
+    pReportCmd->attrList[2].attrID = ATTRID_LIGHTING_COLOR_CONTROL_CURRENT_Y;
+    pReportCmd->attrList[2].dataType = ZCL_DATATYPE_UINT16;
+    pReportCmd->attrList[2].attrData = (void *)(&zclColor_CurrentY);
+    
+    zclRGBLedBulb_DstAddr.addrMode = (afAddrMode_t)Addr16Bit;
+    zclRGBLedBulb_DstAddr.addr.shortAddr = 0;
+    zclRGBLedBulb_DstAddr.endPoint = 1;
+
+    zcl_SendReportCmd(RGBLedBulb_ENDPOINT, &zclRGBLedBulb_DstAddr,
+                      ZCL_CLUSTER_ID_LIGHTING_COLOR_CONTROL, pReportCmd,
+                      ZCL_FRAME_CLIENT_SERVER_DIR, false, SeqNum++);
+  }
+
+  osal_mem_free(pReportCmd);
+}
 
 //static void zclRGBLedBulb_DetectShortRST( void )
 //{
@@ -1553,10 +1594,78 @@ void zclRGBLedBulb_LeaveNetwork( void )
   }
 }
 
+static void zclRGBLedBulb_RestoreAttributesFromNV(void) {
+  UART_String("Restore");
+  zclCCMoveToColor_t pCmd = {0};
+  
+  if (osal_nv_item_init(NV_COLOR_XY_ID, 8, colorXYBuff) == ZSuccess) {
+    if (osal_nv_read(NV_COLOR_XY_ID, 0, 8, colorXYBuff) == ZSuccess) {
+      pCmd.colorX = BUILD_UINT16(colorXYBuff[0], colorXYBuff[1]);
+      pCmd.colorY = BUILD_UINT16(colorXYBuff[2], colorXYBuff[3]);
+      pCmd.transitionTime = BUILD_UINT16(colorXYBuff[4], colorXYBuff[5]);
+      zclRGBLedBulb_OnOff = colorXYBuff[6];
+      zclRGBLedBulb_OnOff_Behavior = colorXYBuff[7];
+//      if(zclRGBLedBulb_OnOff)
+//        UART_String("ON");
+//      else
+//        UART_String("OFF");
+      zclColor_MoveToColorCB(&pCmd);
+    }
+  }
+  
+
+}
+static void zclRGBLedBulb_SaveAttributesToNV(void) {
+  colorXYBuff[0] = LO_UINT16(zclColor_CurrentX);
+  colorXYBuff[1] = HI_UINT16(zclColor_CurrentX);
+  colorXYBuff[2] = LO_UINT16(zclColor_CurrentY);
+  colorXYBuff[3] = HI_UINT16(zclColor_CurrentY);
+  colorXYBuff[4] = LO_UINT16(zclColor_ColorRemainingTime);
+  colorXYBuff[5] = HI_UINT16(zclColor_ColorRemainingTime);
+  if(zclRGBLedBulb_OnOff_Behavior == LIGHT_PREVIOUS){
+    colorXYBuff[6] = zclRGBLedBulb_OnOff;
+  }else if (zclRGBLedBulb_OnOff_Behavior == LIGHT_ON){
+    colorXYBuff[6] = LIGHT_ON;
+  }else{
+    colorXYBuff[6] = LIGHT_OFF;
+  }
+  
+  colorXYBuff[7] = zclRGBLedBulb_OnOff_Behavior;
+  if (osal_nv_item_init(NV_COLOR_XY_ID, 8, colorXYBuff) == ZSuccess) {
+      osal_nv_write(NV_COLOR_XY_ID, 0, 8, colorXYBuff);
+  }
+}
+
+static void zclRGBLedBulb_ReportErrorRuntime( void) 
+{
+  // ?????? ???????????
+  const uint8 NUM_ATTRIBUTES = 1;
+  zclReportCmd_t *pReportCmd;
+
+  pReportCmd = osal_mem_alloc(sizeof(zclReportCmd_t) +
+                              (NUM_ATTRIBUTES * sizeof(zclReport_t)));
+  if (pReportCmd != NULL) {
+    pReportCmd->numAttr = NUM_ATTRIBUTES;
+
+    pReportCmd->attrList[0].attrID = ATTRID_ON_OFF_ERROR_RUNTIME;
+    pReportCmd->attrList[0].dataType = ZCL_DATATYPE_UINT8;
+    pReportCmd->attrList[0].attrData = (void *)(&zclRGBLedBulb_ErorRuntime);
+    zclRGBLedBulb_DstAddr.addrMode = (afAddrMode_t)Addr16Bit;
+    zclRGBLedBulb_DstAddr.addr.shortAddr = 0;
+    zclRGBLedBulb_DstAddr.endPoint = 1;
+
+    zcl_SendReportCmd(RGBLedBulb_ENDPOINT, &zclRGBLedBulb_DstAddr,
+                      ZCL_CLUSTER_ID_GEN_ON_OFF, pReportCmd,
+                      ZCL_FRAME_CLIENT_SERVER_DIR, false, SeqNum++);
+  }
+
+  osal_mem_free(pReportCmd);
+}
+
 HAL_ISR_FUNCTION( halInputPort0Isr, P0INT_VECTOR )
 {
   HAL_ENTER_ISR();
-  UART_String("ISR ne");
+//  UART_String("ISR ne");
   if ( P0IFG & BV(0))
   {
     //halProcessKeyInterrupt();
@@ -1564,11 +1673,14 @@ HAL_ISR_FUNCTION( halInputPort0Isr, P0INT_VECTOR )
     powerSwCounting++;
     sprintf(dat,"Count: %d", powerSwCounting);
     UART_String(dat);
-    if(powerSwCounting == 3){
+    if(powerSwCounting == 5){
       osal_start_timerEx(zclRGBLedBulb_TaskID, RGBLedBulb_EVT_LONG, 100);
     }
     //<>
-    osal_start_timerEx(zclRGBLedBulb_TaskID, RGBLedBulb_RST_COUNTING_EVT, 5000);
+    else{
+      zclRGBLedBulb_SaveAttributesToNV();
+      osal_start_timerEx(zclRGBLedBulb_TaskID, RGBLedBulb_RST_COUNTING_EVT, 3000);
+    }
   }
   /*
     Clear the CPU interrupt flag for Port_0

@@ -26,7 +26,8 @@
 
 #define HAL_SONOFF // ??????? ?????? ??? Sonoff Zigbee
 #define UART_DEBUG
-
+//#define DO_DEBUG_UART
+#define ZLL_HW_LED_LAMP
 #define ZCL_LIGHT_LINK_ENHANCE
 #define ZCL_LEVEL_CTRL
 #define ZCL_COLOR_CTRL

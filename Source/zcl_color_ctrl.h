@@ -125,6 +125,7 @@ ZStatus_t zclColor_StepEnhHueCB( zclCCEnhancedStepHue_t *pCmd );
 ZStatus_t zclColor_MoveToEnhHueAndSaturationCB( zclCCEnhancedMoveToHueAndSaturation_t *pCmd );
 ZStatus_t zclColor_SetColorLoopCB( zclCCColorLoopSet_t *pCmd );
 
+uint8 getTaskID(void);
 /*********************************************************************
 *********************************************************************/
 #endif //ZCL_COLOR_CTRL

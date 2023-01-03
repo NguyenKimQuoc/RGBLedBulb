@@ -63,7 +63,7 @@
 //#define xHAL_PA_LNA_SE2431L
 #define xHAL_PA_LNA_CC2592
 
-#define ZLL_HW_LED_LAMP
+
 /* ------------------------------------------------------------------------------------------------
  *                                       Board Indentifier
  *

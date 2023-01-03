@@ -87,7 +87,9 @@
  * GLOBAL VARIABLES
  */
 // On/Off Cluster
-uint8  zclRGBLedBulb_OnOff = LIGHT_OFF;
+uint8  zclRGBLedBulb_OnOff = LIGHT_ON;
+uint8  zclRGBLedBulb_OnOff_Behavior = LIGHT_PREVIOUS;
+uint8  zclRGBLedBulb_ErorRuntime = false;
 uint8  zclRGBLedBulb_GlobalSceneCtrl = TRUE;
 uint16 zclRGBLedBulb_OnTime = 0x0000;
 uint16 zclRGBLedBulb_OffWaitTime = 0x0000;
@@ -647,6 +649,24 @@ CONST zclAttrRec_t zclRGBLedBulb_Attrs[] =
   },
 #endif //ZLL_HW_LED_LAMP
 #endif //ZCL_COLOR_CTRL
+  {  
+    ZCL_CLUSTER_ID_GEN_ON_OFF,
+    { // Attribute record
+      ATTRID_ON_OFF_ERROR_RUNTIME,
+      ZCL_DATATYPE_UINT8,
+      ACCESS_CONTROL_READ,
+      (void *)&zclRGBLedBulb_ErorRuntime
+    }
+  },
+  {
+    ZCL_CLUSTER_POWER_ON_BEHAVIOR,
+    { // Attribute record
+      ATTRID_POWER_ON_BEHAVIOR,
+      ZCL_DATATYPE_ENUM8,
+      (ACCESS_CONTROL_READ | ACCESS_CONTROL_WRITE),
+      (void *)&zclRGBLedBulb_OnOff_Behavior
+    }
+  }
 };
 
 uint8 CONST zclRGBLedBulb_NumAttributes = ( sizeof(zclRGBLedBulb_Attrs) / sizeof(zclRGBLedBulb_Attrs[0]) );

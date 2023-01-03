@@ -3268,12 +3268,6 @@
             <name>$PROJ_DIR$\..\Source\pwm.h</name>
         </file>
         <file>
-            <name>$PROJ_DIR$\..\Source\uart.c</name>
-        </file>
-        <file>
-            <name>$PROJ_DIR$\..\Source\uart.h</name>
-        </file>
-        <file>
             <name>$PROJ_DIR$\..\Source\zcl_color_ctrl.c</name>
         </file>
         <file>
@@ -3411,9 +3405,6 @@
                 <name>$PROJ_DIR$\..\..\..\..\..\Components\hal\include\hal_sleep.h</name>
             </file>
             <file>
-                <name>$PROJ_DIR$\..\..\..\..\..\Components\hal\include\hal_timer.h</name>
-            </file>
-            <file>
                 <name>$PROJ_DIR$\..\..\..\..\..\Components\hal\include\hal_uart.h</name>
             </file>
         </group>
@@ -3452,9 +3443,6 @@
                     </file>
                     <file>
                         <name>$PROJ_DIR$\..\..\..\..\..\Components\hal\target\CC2530EB\hal_startup.c</name>
-                    </file>
-                    <file>
-                        <name>$PROJ_DIR$\..\..\..\..\..\Components\hal\target\CC2530EB\hal_timer.c</name>
                     </file>
                     <file>
                         <name>$PROJ_DIR$\..\..\..\..\..\Components\hal\target\CC2530EB\hal_uart.c</name>
@@ -4025,6 +4013,33 @@
         </file>
         <file>
             <name>$PROJ_DIR$\..\..\..\ZMain\TI2530DB\ZMain.c</name>
+        </file>
+    </group>
+    <group>
+        <name>zstack-lib</name>
+        <file>
+            <name>$PROJ_DIR$\..\zstack-lib\commissioning.c</name>
+        </file>
+        <file>
+            <name>$PROJ_DIR$\..\zstack-lib\commissioning.h</name>
+        </file>
+        <file>
+            <name>$PROJ_DIR$\..\zstack-lib\Debug.c</name>
+        </file>
+        <file>
+            <name>$PROJ_DIR$\..\zstack-lib\Debug.h</name>
+        </file>
+        <file>
+            <name>$PROJ_DIR$\..\zstack-lib\hal_timer.c</name>
+        </file>
+        <file>
+            <name>$PROJ_DIR$\..\zstack-lib\hal_timer.h</name>
+        </file>
+        <file>
+            <name>$PROJ_DIR$\..\zstack-lib\uart.c</name>
+        </file>
+        <file>
+            <name>$PROJ_DIR$\..\zstack-lib\uart.h</name>
         </file>
     </group>
 </project>

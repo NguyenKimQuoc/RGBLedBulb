@@ -55,7 +55,8 @@
 #include "nwk.h"
 #include "APS.h"
 #include "ZDApp.h"
-
+#include "commissioning.h"
+#include "Debug.h"
 
 #include "bdb_interface.h"
 #if !defined (DISABLE_GREENPOWER_BASIC_PROXY) && (ZG_BUILD_RTR_TYPE)
@@ -139,6 +140,7 @@ uint16 *tasksEvents;
  */
 void osalInitTasks( void )
 {
+  DebugInit();
   uint8 taskID = 0;
 
   tasksEvents = (uint16 *)osal_mem_alloc( sizeof( uint16 ) * tasksCnt);
@@ -175,7 +177,8 @@ void osalInitTasks( void )
 #endif
   zcl_Init( taskID++ );
   bdb_Init( taskID++ );
-  zclRGBLedBulb_Init( taskID );
+  zclRGBLedBulb_Init( taskID++ );
+  zclCommissioning_Init( taskID );
 }
 
 /*********************************************************************

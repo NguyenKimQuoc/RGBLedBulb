@@ -112,7 +112,10 @@ extern "C"
 #endif
 #define LIGHT_OFF                            0x00
 #define LIGHT_ON                             0x01
+#define LIGHT_PREVIOUS                  0x02
    
+#define BEHAVIOR                        0x00
+#define STATE_ONOFF                     0x01  
 // Application Events
 #define RGBLedBulb_MAIN_SCREEN_EVT          0x0001
 #define RGBLedBulb_EVT_LONG                 0x0002
@@ -130,14 +133,23 @@ extern "C"
 #define RGBLedBulb_COLOR_PROCESS_EVT        0x0200
 #define RGBLedBulb_COLOR_LOOP_PROCESS_EVT   0x0400
 #define RGBLedBulb_THERMAL_SAMPLE_EVT       0x0800
+//#define RGBLedBulb_CHECK_ERROR_EVT       0x1000
 /*
 #define RGBLedBulb_EVT_2                    0x0010
 #define RGBLedBulb_EVT_3                    0x0020
 */
+#define ADC_RED_OFF                     621
+#define ADC_GREEN_OFF                     611
+#define ADC_BLUE_OFF                     616
+  
+#define ZCL_CLUSTER_POWER_ON_BEHAVIOR                       0xE001
+#define ATTRID_POWER_ON_BEHAVIOR                       0xD010
 
+#define ATTRID_ON_OFF_ERROR_RUNTIME                       0x4004
 // NV IDs
 #define NV_PW_SW_COUTING_ID     0x0401
-  
+#define NV_COLOR_XY_ID          0x0402
+   
 // Application Display Modes
 #define GENERIC_MAINMODE      0x00
 #define GENERIC_HELPMODE      0x01
@@ -157,6 +169,8 @@ extern "C"
  * VARIABLES
  */
 extern uint8  zclRGBLedBulb_OnOff;
+extern uint8  zclRGBLedBulb_OnOff_Behavior;
+extern uint8  zclRGBLedBulb_ErorRuntime;
 extern uint8  zclRGBLedBulb_GlobalSceneCtrl;
 extern uint16 zclRGBLedBulb_OnTime;
 extern uint16 zclRGBLedBulb_OffWaitTime;

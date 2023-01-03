@@ -49,12 +49,18 @@
  * INCLUDES
  */
 #include "onboard.h"
-
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <math.h>
+#include "uart.h"
+#include "delay.h"
 /* HAL */
 #include "hal_timer.h"
 #include "hal_lcd.h"
 #include "hal_led.h"
-
+#include "hal_adc.h"
+   
 #ifdef ZCL_COLOR_CTRL
 #include "hueToXyTable.c"
 #include "zcl_color_ctrl.h"
@@ -133,7 +139,7 @@ static void hwLight_UpdateLevel( uint8 level );
 */
 static void hwLight_UpdateLampColor( uint16 colorX, uint16 colorY, uint8 level)
 {
-  uint16 redP, greenP, blueP, whiteP;
+  uint16 redP, greenP, blueP;
 
   hwLight_Convert_xyY_to_RGB((float)colorX/0xFFFF, (float)colorY/0xFFFF, (float) level*(100/(float)0xFF),
                      &redP, &greenP, &blueP);
@@ -143,8 +149,42 @@ static void hwLight_UpdateLampColor( uint16 colorX, uint16 colorY, uint8 level)
   halTimer1SetChannelDuty (RED_LED,   redP);
   halTimer1SetChannelDuty (GREEN_LED, greenP );
   halTimer1SetChannelDuty (BLUE_LED,  blueP);
+  
+//  hwLight_ReportError(redP, greenP, blueP);
 //  halTimer1SetChannelDuty (WHITE_LED, whiteP);
+}
 
+void hwLight_ReportError(uint16 red, uint16 green, uint16 blue){
+//  char dat[30];
+  zclRGBLedBulb_ErorRuntime = false;
+  uint16 redADC = 0, greenADC = 0, blueADC = 0;
+  uint8 i;
+  for(i = 0; i < 3; i++){
+    redADC += HalAdcRead(HAL_ADC_CHANNEL_4, HAL_ADC_RESOLUTION_14);
+    greenADC += HalAdcRead(HAL_ADC_CHANNEL_5, HAL_ADC_RESOLUTION_14);
+    blueADC += HalAdcRead(HAL_ADC_CHANNEL_6, HAL_ADC_RESOLUTION_14);
+  }
+  
+  redADC /= 3; 
+  greenADC /= 3;
+  blueADC /= 3;
+  
+//  sprintf(dat,"R: %d, %d", redADC, red);
+//  UART_String(dat);
+//  
+//  sprintf(dat,"G: %d, %d", greenADC, green);
+//  UART_String(dat);
+//
+//  sprintf(dat,"B: %d, %d", blueADC, blue);
+//  UART_String(dat);
+  if((red > 21) && (abs(redADC - ADC_RED_OFF) < 5))
+    zclRGBLedBulb_ErorRuntime = true;
+  if((green > 21) && (abs(greenADC - ADC_GREEN_OFF) < 5))
+    zclRGBLedBulb_ErorRuntime = true;
+  if((blue > 21) && (abs(blueADC - ADC_BLUE_OFF) < 5))
+    zclRGBLedBulb_ErorRuntime = true;
+  if(zclRGBLedBulb_ErorRuntime)  
+    osal_start_timerEx( getTaskID(), RGBLedBulb_REPORTING_EVT, 1000 );  
 }
 
 /*********************************************************************
@@ -630,8 +670,14 @@ void hwLight_UpdateLampLevel( uint8 level )
 
   //gamma correct the level
   gammaCorrectedLevel = pow( ( (float)level / LEVEL_MAX ), (float)GAMMA_VALUE ) * (float)LEVEL_MAX;
-
-  halTimer1SetChannelDuty (WHITE_LED, (uint16)(((uint32)gammaCorrectedLevel*PWM_FULL_DUTY_CYCLE)/LEVEL_MAX) );
+  sprintf("lamp");
+//  halTimer1SetChannelDuty (WHITE_LED, (uint16)(((uint32)gammaCorrectedLevel*PWM_FULL_DUTY_CYCLE)/LEVEL_MAX) );
+  halTimer1SetChannelDuty (RED_LED,   (uint16)(((uint32)gammaCorrectedLevel*PWM_FULL_DUTY_CYCLE)/LEVEL_MAX));
+  halTimer1SetChannelDuty (GREEN_LED, (uint16)(((uint32)gammaCorrectedLevel*PWM_FULL_DUTY_CYCLE)/LEVEL_MAX) );
+  halTimer1SetChannelDuty (BLUE_LED,  (uint16)(((uint32)gammaCorrectedLevel*PWM_FULL_DUTY_CYCLE)/LEVEL_MAX));
+  hwLight_ReportError((uint16)(((uint32)gammaCorrectedLevel*PWM_FULL_DUTY_CYCLE)/LEVEL_MAX),
+                      (uint16)(((uint32)gammaCorrectedLevel*PWM_FULL_DUTY_CYCLE)/LEVEL_MAX),
+                      (uint16)(((uint32)gammaCorrectedLevel*PWM_FULL_DUTY_CYCLE)/LEVEL_MAX));
 }
 #endif //ZLL_HW_LED_LAMP
 #endif //ZCL_LEVEL_CTRL

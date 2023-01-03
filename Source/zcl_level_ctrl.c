@@ -107,11 +107,11 @@ void zclLevel_init( byte taskID, zclGCB_OnOff_t OnOffCB )
 
   //Move lamp to default level
   zclLevel_LevelRemainingTime = 0;
-   hwLight_ApplyUpdate( &zclLevel_CurrentLevel,
-                        &zclLevel_CurrentLevel_256,
-                        &zclLevel_StepLevel_256,
-                        &zclLevel_LevelRemainingTime,
-                        LEVEL_MIN, LEVEL_MAX, FALSE );
+//   hwLight_ApplyUpdate( &zclLevel_CurrentLevel,
+//                        &zclLevel_CurrentLevel_256,
+//                        &zclLevel_StepLevel_256,
+//                        &zclLevel_LevelRemainingTime,
+//                        LEVEL_MIN, LEVEL_MAX, FALSE );
 }
 
 /*********************************************************************

@@ -109,7 +109,7 @@ void hwLight_UpdateLampLevel( uint8 level );
 void hwLight_UpdateOnOff( uint8 state );
 
 void hwLight_Refresh( uint8 refreshState );
-
+void hwLight_ReportError(uint16 red, uint16 green, uint16 blue);
 /*********************************************************************
 *********************************************************************/
 

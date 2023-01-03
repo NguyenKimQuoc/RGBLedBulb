@@ -74,7 +74,7 @@ extern "C"
 void zllEffects_Init( byte taskID, zclGCB_OnOff_t OnOffCB );
 
 void zllEffects_Blink( void );
-
+void zllEffects_Breathe( void );
 void zllEffects_InitiateEffect( uint16 clusterID, uint8 commandID, uint8 effectID, uint8 effectVariant );
 
 void zllEffects_ProcessEffect( void );

@@ -133,6 +133,14 @@ void zllEffects_Blink( void )
                              EFFECT_ID_BLINK, 0 );
 }
 
+
+void zllEffects_Breathe( void )
+{
+  zllEffects_InitiateEffect( ZCL_CLUSTER_ID_GEN_IDENTIFY,
+                             COMMAND_IDENTIFY_TRIGGER_EFFECT,
+                             EFFECT_ID_BREATHE, 0 );
+}
+
 /*********************************************************************
  * @fn      zllEffects_InitiateEffect
  *

@@ -23,9 +23,9 @@
 
 if ($debugfile -eq "")
 {
-& "D:\IAR Systems\Embedded Workbench 8.1\common\bin\cspybat" -f "E:\Texas Instruments\Z-Stack 3.0.2\Projects\zstack\HomeAutomation\RGBLedBulb\CC2530DB\settings\RGBLedBulb.RouterEB.general.xcl" --backend -f "E:\Texas Instruments\Z-Stack 3.0.2\Projects\zstack\HomeAutomation\RGBLedBulb\CC2530DB\settings\RGBLedBulb.RouterEB.driver.xcl" 
+& "D:\IAR Systems\Embedded Workbench 8.1\common\bin\cspybat" -f "E:\Texas Instruments\Z-Stack 3.0.2(2)\Projects\zstack\HomeAutomation\RGBLedBulb\CC2530DB\settings\RGBLedBulb.RouterEB.general.xcl" --backend -f "E:\Texas Instruments\Z-Stack 3.0.2(2)\Projects\zstack\HomeAutomation\RGBLedBulb\CC2530DB\settings\RGBLedBulb.RouterEB.driver.xcl" 
 }
 else
 {
-& "D:\IAR Systems\Embedded Workbench 8.1\common\bin\cspybat" -f "E:\Texas Instruments\Z-Stack 3.0.2\Projects\zstack\HomeAutomation\RGBLedBulb\CC2530DB\settings\RGBLedBulb.RouterEB.general.xcl" --debug_file=$debugfile --backend -f "E:\Texas Instruments\Z-Stack 3.0.2\Projects\zstack\HomeAutomation\RGBLedBulb\CC2530DB\settings\RGBLedBulb.RouterEB.driver.xcl" 
+& "D:\IAR Systems\Embedded Workbench 8.1\common\bin\cspybat" -f "E:\Texas Instruments\Z-Stack 3.0.2(2)\Projects\zstack\HomeAutomation\RGBLedBulb\CC2530DB\settings\RGBLedBulb.RouterEB.general.xcl" --debug_file=$debugfile --backend -f "E:\Texas Instruments\Z-Stack 3.0.2(2)\Projects\zstack\HomeAutomation\RGBLedBulb\CC2530DB\settings\RGBLedBulb.RouterEB.driver.xcl" 
 }
